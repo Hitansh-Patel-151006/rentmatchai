@@ -1,0 +1,355 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  Building2,
+  Heart,
+  Plus,
+  User,
+  LogOut,
+  LogIn,
+  ChevronDown,
+  LayoutDashboard,
+  ShieldCheck,
+  Menu,
+  X,
+  Compass,
+} from 'lucide-react';
+import { useAuth } from '@/src/context/AuthContext';
+import { useProperty } from '@/src/context/PropertyContext';
+import { USER_ROLES, type UserRole } from '@/src/constants/initialData';
+import { ToggleTheme } from '../lightswind/toggle-theme';
+import { usePageCurtains } from '../ui/page-curtains';
+import { useToast } from '../ui/notifications';
+import { RainbowButton } from '../ui/rainbow-button';
+import BrandLogo from './BrandLogo';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/src/components/ui/dropdown-menu';
+
+interface NavbarProps {
+  page?: string;
+  onNavigate?: (page: string, extraTab?: string | null) => void;
+  savedCount?: number;
+  onOpenAddProperty?: () => void;
+  onOpenAuth?: (tab?: string, role?: string) => void;
+}
+
+export default function Navbar({
+  onNavigate,
+  savedCount: propSavedCount,
+  onOpenAddProperty: propOpenAddProperty,
+  onOpenAuth: propOpenAuth,
+}: NavbarProps = {}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { navigateWithCurtains } = usePageCurtains();
+  const { notify } = useToast();
+
+  const { user, isAuthenticated, isLister, logout, openAuthModal } = useAuth();
+  const propertyContext = useProperty();
+
+  const savedCount = propSavedCount !== undefined ? propSavedCount : propertyContext.saved.length;
+  const onOpenAddProperty = propOpenAddProperty || propertyContext.openAddProperty;
+  const onOpenAuth = propOpenAuth || ((tab, role) => openAuthModal(tab, role as UserRole));
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Scroll detection to adapt navbar backdrop over hero vs page content
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 15);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const handleNav = (targetPage: string, extraTab: string | null = null) => {
+    if (onNavigate) {
+      onNavigate(targetPage, extraTab);
+    } else {
+      if (targetPage === 'home') {
+        navigateWithCurtains('/', 'Lander');
+      } else if (targetPage === 'dashboard') {
+        navigateWithCurtains('/dashboard', 'Dashboard');
+      } else if (targetPage === 'properties' || targetPage === 'dashboard/properties') {
+        navigateWithCurtains('/dashboard/properties', 'My Properties');
+      } else if (targetPage === 'results') {
+        navigateWithCurtains('/dashboard/explore', 'Find Properties');
+      } else if (targetPage === 'shortlist') {
+        navigateWithCurtains('/dashboard/shortlist', 'My Shortlist');
+      } else if (targetPage === 'profile' || targetPage === 'dashboard/profile') {
+        navigateWithCurtains(extraTab ? `/dashboard/profile?tab=${extraTab}` : '/dashboard/profile', 'Profile & Settings');
+      } else if (targetPage === 'login') {
+        navigateWithCurtains('/login', 'Login');
+      } else if (targetPage === 'signup') {
+        navigateWithCurtains('/signup', 'Create Account');
+      }
+    }
+    setMobileMenuOpen(false);
+  };
+
+  const handleLogout = () => {
+    const firstName = user?.firstName;
+    logout();
+    setMobileMenuOpen(false);
+    notify.info(
+      firstName
+        ? `You have been signed out. See you soon, ${firstName}!`
+        : 'You have been signed out successfully.',
+      'Signed Out'
+    );
+    handleNav('home');
+  };
+
+  const safeLastName = user?.lastName && user.lastName !== 'User' ? user.lastName : '';
+  const userFullName = user ? [user.firstName, safeLastName].filter(Boolean).join(' ') : 'User';
+  const userInitials = user
+    ? `${user.firstName?.[0] || ''}${safeLastName?.[0] || ''}`.toUpperCase() || user.firstName?.[0]?.toUpperCase() || 'U'
+    : 'U';
+
+  const scrollToSection = (id: string) => {
+    setMobileMenuOpen(false);
+    if (pathname !== '/') {
+      router.push(`/#${id}`);
+      return;
+    }
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <header
+      className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+        scrolled
+          ? 'border-b border-zinc-200/80 dark:border-zinc-800/80 bg-[#F9F5EF]/90 dark:bg-[#171513]/90 backdrop-blur-xl shadow-xs'
+          : 'border-b border-zinc-200/40 dark:border-zinc-800/40 bg-[#F9F5EF]/60 dark:bg-[#171513]/60 backdrop-blur-md'
+      }`}
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 sm:h-20 flex items-center justify-between gap-6">
+        {/* Brand Logo */}
+        <button
+          type="button"
+          className="text-left border-0 bg-transparent p-0 cursor-pointer group flex items-center focus:outline-none"
+          onClick={() => handleNav('home')}
+        >
+          <BrandLogo size="md" />
+        </button>
+
+        {/* Desktop Middle Navigation Links (Apple-style minimalism) */}
+        <nav className="hidden md:flex items-center gap-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <button
+            type="button"
+            onClick={() => handleNav('results')}
+            className="px-3.5 py-1.5 rounded-full hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-all active:scale-95 cursor-pointer"
+          >
+            Explore Homes
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToSection('how-it-works')}
+            className="px-3.5 py-1.5 rounded-full hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-all active:scale-95 cursor-pointer"
+          >
+            How It Works
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToSection('features')}
+            className="px-3.5 py-1.5 rounded-full hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-all active:scale-95 cursor-pointer"
+          >
+            Features
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToSection('faqs')}
+            className="px-3.5 py-1.5 rounded-full hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-all active:scale-95 cursor-pointer"
+          >
+            FAQs
+          </button>
+        </nav>
+
+        {/* Right Action Cluster */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Black & White Theme Toggle */}
+          <ToggleTheme />
+
+          {/* Authenticated Dashboard / User Profile vs Capsuled RainbowButton Login */}
+          {isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#211E1B] pl-1.5 pr-2.5 py-1.5 text-xs font-semibold text-zinc-800 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all cursor-pointer shadow-xs active:scale-95"
+                  />
+                }
+              >
+                <div className="w-7 h-7 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 font-bold text-[10px] flex items-center justify-center overflow-hidden shrink-0">
+                  {user!.avatar && !user!.avatar.includes('dicebear') ? (
+                    <img src={user!.avatar} alt={user!.firstName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{userInitials}</span>
+                  )}
+                </div>
+                <span className="hidden sm:inline-block max-w-[100px] truncate text-xs font-semibold">
+                  {user!.firstName}
+                </span>
+                <ChevronDown className="h-3 w-3 text-zinc-400" />
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent
+                align="end"
+                side="bottom"
+                sideOffset={8}
+                className="w-64 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#211E1B] p-1.5 shadow-xl text-zinc-800 dark:text-zinc-200 z-50"
+              >
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="px-3 py-2.5">
+                    <div className="font-bold text-xs text-zinc-950 dark:text-zinc-100">
+                      {userFullName}
+                    </div>
+                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                      {user!.email}
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300">
+                      <ShieldCheck className="h-3 w-3" />
+                      <span>{isLister ? 'Verified Landlord' : 'Verified Renter'}</span>
+                    </div>
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator className="my-1 bg-zinc-100 dark:bg-zinc-800" />
+
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    onClick={() => handleNav('profile', 'personal')}
+                  >
+                    <User className="h-3.5 w-3.5 text-zinc-500" />
+                    <span>Profile &amp; Account</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    onClick={() => handleNav('dashboard')}
+                  >
+                    <LayoutDashboard className="h-3.5 w-3.5 text-zinc-500" />
+                    <span>Dashboard</span>
+                  </DropdownMenuItem>
+
+                  {isLister ? (
+                    <DropdownMenuItem
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      onClick={() => handleNav('properties')}
+                    >
+                      <Building2 className="h-3.5 w-3.5 text-zinc-500" />
+                      <span>My Properties</span>
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      onClick={() => handleNav('shortlist')}
+                    >
+                      <Heart className="h-3.5 w-3.5 text-zinc-500" />
+                      <span>Saved Shortlist ({savedCount})</span>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator className="my-1 bg-zinc-100 dark:bg-zinc-800" />
+
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl cursor-pointer"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    <span>Sign Out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <RainbowButton
+              type="button"
+              className="rounded-full px-5 py-2 text-xs cursor-pointer active:scale-95 transition-transform"
+              onClick={() => handleNav('login')}
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              <span>Login</span>
+            </RainbowButton>
+          )}
+
+          {/* Mobile Navigation Trigger Button */}
+          <button
+            type="button"
+            className="md:hidden flex items-center justify-center h-9 w-9 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-[#211E1B]/80 text-zinc-700 dark:text-zinc-300 cursor-pointer active:scale-90 transition-transform"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X size={17} /> : <Menu size={17} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Drawer Menu (Fluid Apple-style drop) */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="md:hidden overflow-hidden border-t border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-[#211E1B]/95 backdrop-blur-2xl px-6 py-5 space-y-3"
+          >
+            <div className="flex flex-col space-y-2">
+              <button
+                type="button"
+                onClick={() => handleNav('results')}
+                className="flex items-center justify-between w-full py-2.5 px-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl text-left cursor-pointer active:scale-[0.98]"
+              >
+                <span>Explore Homes</span>
+                <Compass size={16} className="text-zinc-400" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToSection('how-it-works')}
+                className="flex items-center justify-between w-full py-2.5 px-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl text-left cursor-pointer active:scale-[0.98]"
+              >
+                <span>How It Works</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToSection('features')}
+                className="flex items-center justify-between w-full py-2.5 px-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl text-left cursor-pointer active:scale-[0.98]"
+              >
+                <span>Features</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToSection('faqs')}
+                className="flex items-center justify-between w-full py-2.5 px-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl text-left cursor-pointer active:scale-[0.98]"
+              >
+                <span>FAQs</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </header>
+  );
+}
